@@ -49,9 +49,8 @@ keplr.native.unlock.fallback=true
 keplr.auto.unlock.enabled=true
 keplr.password.env.var=KEPLR_PASSWORD
 keplr.password.keychain.service=verana_keplr_password
-# Set your Keplr password via the KEPLR_PASSWORD environment variable instead of here.
-# Example: export KEPLR_PASSWORD=YourPassword
-keplr.password=
+# Your Keplr wallet password (this file is gitignored — safe to put here)
+keplr.password=YOUR_KEPLR_PASSWORD_HERE
 tx.success.wait.seconds=60
 tx.success.toast.wait.seconds=30
 

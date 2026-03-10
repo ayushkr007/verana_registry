@@ -111,18 +111,13 @@ This step launches Chrome with a special profile so the Keplr extension is insta
 
 ### 4. Set your Keplr password
 
-The automation needs your Keplr password to unlock the wallet. Set it as an environment variable (do NOT put it in config.properties):
+Open `config.properties` and set your Keplr wallet password (the one you created in step 3):
 
-```bash
-# macOS / Linux — add to your shell profile (~/.zshrc or ~/.bashrc)
-export KEPLR_PASSWORD="YourKeplrPassword"
-source ~/.zshrc   # reload the profile
-
-# Windows (PowerShell) — add to your PowerShell profile
-$env:KEPLR_PASSWORD = "YourKeplrPassword"
+```properties
+keplr.password=YourKeplrPassword
 ```
 
-This is the same password you set in step 3 when setting up Keplr.
+This is safe — `config.properties` is gitignored and will never be pushed to GitHub.
 
 ## Run
 
