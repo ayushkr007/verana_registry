@@ -17,20 +17,161 @@ Selenium Java automation for creating ecosystems on the Verana testnet Trust Reg
 
 ## Prerequisites
 
-- Java 11+
-- Maven
-- Google Chrome
-- Keplr wallet extension set up in the selenium Chrome profile (run `./launch_chrome.sh` once to set up)
+- **Java 11+**
+- **Maven 3.6+**
+- **Google Chrome**
+- **A Keplr wallet** — Keplr is a browser extension wallet for Cosmos-based blockchains. If you don't have one yet, you'll create it during setup (step 3 below).
 
-## Setup (one-time)
+### Installing prerequisites
+
+#### macOS
+
+```bash
+# Install Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Java 11 and Maven
+brew install openjdk@11 maven
+
+# Add Java to PATH
+echo 'export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### Ubuntu / Debian
+
+```bash
+sudo apt update
+sudo apt install openjdk-11-jdk maven google-chrome-stable
+```
+
+#### Windows
+
+1. Download and install [JDK 11](https://adoptium.net/)
+2. Download and install [Maven](https://maven.apache.org/download.cgi) and add it to your `PATH`
+3. Download and install [Google Chrome](https://www.google.com/chrome/)
+
+### Verify installation
+
+```bash
+java -version    # should show 11+
+mvn -version     # should show 3.6+
+```
+
+## Setup
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd verana_automation
+```
+
+### 2. Create your config file
+
+The config file is not included in the repo (it's gitignored to protect passwords and local paths). You need to create it from the provided template:
+
+```bash
+cp config.properties.example config.properties
+```
+
+The defaults work out of the box — Chrome binary and Keplr extension paths are auto-detected. You only need to edit `config.properties` if you have a non-standard Chrome installation.
+
+### 3. Set up Keplr wallet (one-time)
+
+This step launches Chrome with a special profile so the Keplr extension is installed and your wallet is saved for future test runs.
+
+**macOS / Linux:**
+
+1. Close **all** Chrome windows first (required — Chrome can only have one instance per profile)
+2. Run the setup script:
+   ```bash
+   chmod +x launch_chrome.sh
+   ./launch_chrome.sh
+   ```
+3. Chrome will open with the Keplr extension. In the Keplr popup:
+   - If you **already have a wallet**: Click **"Import existing wallet"** → enter your 12/24-word seed phrase → set a password
+   - If you **don't have a wallet**: Click **"Create a new wallet"** → save your seed phrase somewhere safe → set a password
+4. Once Keplr shows your wallet is ready, **close Chrome**
+
+**Windows:**
 
 1. Close all Chrome windows
-2. Run `./launch_chrome.sh`
-3. Import your wallet into Keplr and set the password
+2. Open PowerShell and run:
+   ```powershell
+   & "C:\Program Files\Google\Chrome\Application\chrome.exe" `
+     --user-data-dir="$env:USERPROFILE\selenium-keplr-profile" `
+     --profile-directory="Profile 1" `
+     --no-first-run `
+     --no-default-browser-check `
+     "https://app.testnet.verana.network/dashboard"
+   ```
+3. Install the Keplr extension from the Chrome Web Store, then import/create your wallet
 4. Close Chrome
+
+### 4. Set your Keplr password
+
+The automation needs your Keplr password to unlock the wallet. Set it as an environment variable (do NOT put it in config.properties):
+
+```bash
+# macOS / Linux — add to your shell profile (~/.zshrc or ~/.bashrc)
+export KEPLR_PASSWORD="YourKeplrPassword"
+source ~/.zshrc   # reload the profile
+
+# Windows (PowerShell) — add to your PowerShell profile
+$env:KEPLR_PASSWORD = "YourKeplrPassword"
+```
+
+This is the same password you set in step 3 when setting up Keplr.
 
 ## Run
 
 ```bash
 mvn test
+```
+
+## Troubleshooting
+
+### "Failed to launch Chrome" / "user-data-dir is already in use"
+
+Chrome can only run one instance per profile. Close **all** Chrome windows and try again:
+
+```bash
+# macOS — force quit all Chrome processes
+pkill -f "Google Chrome"
+
+# Linux
+pkill chrome
+
+# Windows (PowerShell)
+Stop-Process -Name chrome -Force
+```
+
+### "Keplr extension not found"
+
+The Keplr extension hasn't been installed in the selenium profile yet. Run the setup script (`./launch_chrome.sh`) and install Keplr — see step 3 above.
+
+### "Failed to load config.properties"
+
+You need to create the config file from the template:
+```bash
+cp config.properties.example config.properties
+```
+
+### Keplr is locked / password not working
+
+Make sure the `KEPLR_PASSWORD` environment variable is set in your current terminal session:
+
+```bash
+echo $KEPLR_PASSWORD    # should print your password
+```
+
+If it's empty, set it again (see step 4).
+
+### Test passes but transaction status is "unclear"
+
+The blockchain transaction may take longer than the default 60-second timeout. Increase the timeout in `config.properties`:
+
+```properties
+tx.success.wait.seconds=120
 ```

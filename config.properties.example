@@ -1,0 +1,69 @@
+# =============================================================
+# Verana Ecosystem Automation - Configuration
+# =============================================================
+# Copy this file to config.properties and update values as needed.
+#   cp config.properties.example config.properties
+#
+# ~ is resolved to the current user's home directory automatically.
+# Leave chrome.binary.path and keplr.extension.path blank for auto-detection.
+
+# Verana app URLs
+dashboard.url=https://app.testnet.verana.network/dashboard
+trust.registry.url=https://app.testnet.verana.network/tr
+
+# -------------------------------------------------------------
+# Chrome profile (reuse the same Keplr profile from verana_automation)
+# -------------------------------------------------------------
+chrome.user.data.dir=~/selenium-keplr-profile
+chrome.profile.directory=Profile 1
+chrome.attach.to.running=false
+chrome.debugger.address=127.0.0.1:9222
+chrome.debug.start.wait.seconds=1
+
+# Path to unpacked Keplr extension directory (blank = auto-detect latest version)
+keplr.extension.path=
+
+# Chrome binary path (blank = auto-detect per OS)
+chrome.binary.path=
+
+# Browser behavior
+browser.headless=false
+close.browser.on.finish=false
+page.load.strategy=eager
+
+# Timeouts (seconds)
+implicit.wait.seconds=2
+explicit.wait.seconds=6
+page.load.timeout.seconds=30
+keplr.unlock.precheck.seconds=2
+keplr.unlock.preopen.enabled=true
+keplr.unlock.preopen.seconds=4
+keplr.extension.id=dmkamcknogkgcdfhhbddcghachkejeap
+keplr.unlock.wait.seconds=60
+keplr.connection.popup.wait.seconds=20
+keplr.transaction.quick.popup.wait.seconds=2
+keplr.transaction.popup.wait.seconds=20
+keplr.optional.popup.wait.seconds=1
+keplr.native.approve.fallback=true
+keplr.native.unlock.fallback=true
+keplr.auto.unlock.enabled=true
+keplr.password.env.var=KEPLR_PASSWORD
+keplr.password.keychain.service=verana_keplr_password
+# Set your Keplr password via the KEPLR_PASSWORD environment variable instead of here.
+# Example: export KEPLR_PASSWORD=YourPassword
+keplr.password=
+tx.success.wait.seconds=60
+tx.success.toast.wait.seconds=30
+
+# Keplr extension icon & Approve button positions (Robot clicks)
+keplr.icon.x.from.right=190
+keplr.icon.y.from.top=60
+keplr.approve.x.from.right=80
+keplr.approve.y.from.top=570
+keplr.popup.render.wait.ms=2000
+
+# Ecosystem DID settings
+ecosystem.did.prefix=did:verana:
+ecosystem.aka.url=https://app.testnet.verana.network/tr
+ecosystem.governance.language=English
+ecosystem.governance.doc.url=https://app.testnet.verana.network/tr

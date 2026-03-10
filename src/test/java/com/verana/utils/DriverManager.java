@@ -14,6 +14,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Properties;
 
 /**
@@ -77,14 +79,18 @@ public class DriverManager {
         }
         options.setPageLoadStrategy(pageLoadStrategy);
 
-        // Chrome binary
+        // Chrome binary (auto-detect if blank)
         String chromeBinaryPath = config.getProperty("chrome.binary.path", "").trim();
+        if (chromeBinaryPath.isEmpty()) {
+            chromeBinaryPath = detectChromeBinary();
+        }
         if (!chromeBinaryPath.isEmpty()) {
             options.setBinary(chromeBinaryPath);
+            System.out.println("[DriverManager] Chrome binary = " + chromeBinaryPath);
         }
 
         // Persistent user-data-dir (keeps Keplr wallet data across runs)
-        String userDataDir = config.getProperty("chrome.user.data.dir", "").trim();
+        String userDataDir = resolvePath(config.getProperty("chrome.user.data.dir", "").trim());
         if (!userDataDir.isEmpty()) {
             Path userDataPath = Paths.get(userDataDir).toAbsolutePath();
             ensureDirectoryExists(userDataPath);
@@ -96,7 +102,7 @@ public class DriverManager {
         }
 
         // Load Keplr extension
-        String keplrExtPath = config.getProperty("keplr.extension.path", "").trim();
+        String keplrExtPath = resolvePath(config.getProperty("keplr.extension.path", "").trim());
         if (!keplrExtPath.isEmpty()) {
             File extDir = new File(keplrExtPath);
             if (extDir.isDirectory() && new File(extDir, "manifest.json").exists()) {
@@ -117,7 +123,8 @@ public class DriverManager {
                 if (extBase.toFile().isDirectory()) {
                     File[] versions = extBase.toFile().listFiles(File::isDirectory);
                     if (versions != null && versions.length > 0) {
-                        // Use the latest version
+                        // Use the latest version (sort by name to handle version ordering)
+                        Arrays.sort(versions, Comparator.comparing(File::getName));
                         File latestVersion = versions[versions.length - 1];
                         if (new File(latestVersion, "manifest.json").exists()) {
                             options.addArguments("--load-extension=" + latestVersion.getAbsolutePath());
@@ -154,6 +161,51 @@ public class DriverManager {
 
         System.out.println("[DriverManager] Chrome session started. Current URL: " + driver.getCurrentUrl());
         return driver;
+    }
+
+    /**
+     * Resolves ~ to the user's home directory.
+     */
+    private static String resolvePath(String path) {
+        if (path == null || path.isEmpty()) return path;
+        if (path.startsWith("~")) {
+            return System.getProperty("user.home") + path.substring(1);
+        }
+        return path;
+    }
+
+    /**
+     * Auto-detects Chrome binary location based on the current OS.
+     */
+    private static String detectChromeBinary() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        String[] candidates;
+        if (os.contains("mac")) {
+            candidates = new String[]{
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            };
+        } else if (os.contains("win")) {
+            candidates = new String[]{
+                System.getenv("ProgramFiles") + "\\Google\\Chrome\\Application\\chrome.exe",
+                System.getenv("ProgramFiles(x86)") + "\\Google\\Chrome\\Application\\chrome.exe",
+                System.getProperty("user.home") + "\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe"
+            };
+        } else {
+            candidates = new String[]{
+                "/usr/bin/google-chrome",
+                "/usr/bin/google-chrome-stable",
+                "/usr/bin/chromium-browser",
+                "/usr/bin/chromium"
+            };
+        }
+        for (String path : candidates) {
+            if (path != null && new File(path).exists()) {
+                System.out.println("[DriverManager] Auto-detected Chrome: " + path);
+                return path;
+            }
+        }
+        System.out.println("[DriverManager] Chrome binary not found, relying on PATH.");
+        return "";
     }
 
     private static void ensureDirectoryExists(Path dir) {

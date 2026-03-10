@@ -336,10 +336,13 @@ public class TrustRegistryPage {
         return input;
     }
 
+    private static final Keys SELECT_ALL_KEY =
+            System.getProperty("os.name", "").toLowerCase().contains("mac") ? Keys.COMMAND : Keys.CONTROL;
+
     private void setInputValueFast(WebElement input, String value) {
         try {
             input.click();
-            input.sendKeys(Keys.chord(Keys.COMMAND, "a"));
+            input.sendKeys(Keys.chord(SELECT_ALL_KEY, "a"));
             input.sendKeys(Keys.BACK_SPACE);
             input.sendKeys(value);
             WaitUtils.sleep(80);
@@ -352,7 +355,7 @@ public class TrustRegistryPage {
         try {
             new Actions(driver)
                     .click(input)
-                    .keyDown(Keys.COMMAND).sendKeys("a").keyUp(Keys.COMMAND)
+                    .keyDown(SELECT_ALL_KEY).sendKeys("a").keyUp(SELECT_ALL_KEY)
                     .sendKeys(Keys.BACK_SPACE)
                     .sendKeys(value)
                     .perform();
