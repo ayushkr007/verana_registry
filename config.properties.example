@@ -47,10 +47,18 @@ keplr.optional.popup.wait.seconds=1
 keplr.native.approve.fallback=true
 keplr.native.unlock.fallback=true
 keplr.auto.unlock.enabled=true
-keplr.password.env.var=KEPLR_PASSWORD
 keplr.password.keychain.service=verana_keplr_password
-# Your Keplr wallet password (this file is gitignored — safe to put here)
-keplr.password=YOUR_KEPLR_PASSWORD_HERE
+
+# -------------------------------------------------------------
+# Keplr wallet password (REQUIRED for auto-unlock)
+# -------------------------------------------------------------
+# Set your password via environment variable before running tests:
+#   export KEPLR_PASSWORD=YourKeplrPassword
+#
+# The env var name used (default: KEPLR_PASSWORD):
+keplr.password.env.var=KEPLR_PASSWORD
+#
+# DO NOT hardcode your password in this file — it may be committed to git.
 tx.success.wait.seconds=60
 tx.success.toast.wait.seconds=30
 

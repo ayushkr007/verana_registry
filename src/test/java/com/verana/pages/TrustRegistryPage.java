@@ -53,22 +53,22 @@ public class TrustRegistryPage {
             "//label[contains(normalize-space(.), 'Governance Framework Primary Document URL')]/following-sibling::*//input | " +
             "//label[contains(normalize-space(.), 'Governance Framework Primary Document URL')]/following::input[1]");
 
-    // Confirm button after form is filled
+    // Confirm button after form is filled (excludes the "Create Ecosystem" button itself)
     private final By confirmButton = By.xpath(
-            "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'confirm')] | " +
-            "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'submit')] | " +
-            "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'create')] | " +
+            "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'confirm') " +
+            "and not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ecosystem'))] | " +
+            "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'submit') " +
+            "and not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ecosystem'))] | " +
             "//button[@type='submit']");
 
-    // Transaction success indicators
+    // Transaction success indicators — matches specific phrases, not the generic word "success"
     private final By transactionSuccessMessage = By.xpath(
             "//*[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'transaction successful') or " +
             "contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'successful transaction') or " +
             "contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'transaction in progress') or " +
             "contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'creating ecosystem') or " +
             "contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ecosystem created') or " +
-            "contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tx hash') or " +
-            "contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'success')]");
+            "contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tx hash')]");
 
     public TrustRegistryPage(WebDriver driver) {
         this.driver = driver;
@@ -91,7 +91,7 @@ public class TrustRegistryPage {
         scrollIntoView(btn);
         click(btn);
         System.out.println("[TrustRegistryPage] Clicked 'Create Ecosystem' button.");
-        WaitUtils.sleep(1500);
+        WaitUtils.sleep(500);
     }
 
     /**
@@ -141,7 +141,6 @@ public class TrustRegistryPage {
      */
     public void enterAka(String akaUrl) {
         System.out.println("[TrustRegistryPage] Entering Aka: " + akaUrl);
-        dumpFormFields();
         WebElement input = findVisibleInput(akaInput, "Aka");
         setInputValueFast(input, akaUrl);
         // Verify the value was actually set
@@ -218,8 +217,8 @@ public class TrustRegistryPage {
             System.out.println("[TrustRegistryPage] === END BUTTONS ===");
         } catch (Exception ignored) {}
 
-        // Try exact match first, then broader matches
-        String[] buttonTexts = {"confirm", "submit", "create ecosystem"};
+        // Try exact match first — exclude the "Create Ecosystem" button to avoid clicking it again
+        String[] buttonTexts = {"confirm", "submit"};
         for (String text : buttonTexts) {
             try {
                 List<WebElement> buttons = driver.findElements(By.xpath(
@@ -227,7 +226,7 @@ public class TrustRegistryPage {
                 for (WebElement btn : buttons) {
                     if (!btn.isDisplayed() || !btn.isEnabled()) continue;
                     String btnText = btn.getText().trim().toLowerCase();
-                    if (btnText.contains(text)) {
+                    if (btnText.contains(text) && !btnText.contains("ecosystem")) {
                         scrollIntoView(btn);
                         click(btn);
                         System.out.println("[TrustRegistryPage] Clicked confirm button: '" + btn.getText().trim() + "'");
@@ -291,10 +290,62 @@ public class TrustRegistryPage {
     }
 
     private boolean tryCustomDropdownEnglish() {
+        try {
+            // Look for a button/combobox trigger near the language label
+            List<WebElement> triggers = driver.findElements(By.xpath(
+                    "//label[contains(normalize-space(.), 'Primary Governance Framework Language')]" +
+                    "/following::*[self::button or @role='combobox' or @role='listbox' or contains(@class,'select')][1]"));
+            for (WebElement trigger : triggers) {
+                if (!trigger.isDisplayed()) continue;
+                trigger.click();
+                WaitUtils.sleep(300);
+                // Look for "English" option in the opened dropdown
+                List<WebElement> options = driver.findElements(By.xpath(
+                        "//*[@role='option' or @role='menuitem' or contains(@class,'option')]" +
+                        "[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'english')]"));
+                for (WebElement opt : options) {
+                    if (opt.isDisplayed()) {
+                        opt.click();
+                        System.out.println("[TrustRegistryPage] Selected English via custom dropdown: " + opt.getText());
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("[TrustRegistryPage] Custom dropdown strategy failed: " + e.getMessage());
+        }
         return false;
     }
 
     private boolean tryInputEnglish() {
+        try {
+            // Find a text input near the language label and type "English"
+            List<WebElement> inputs = driver.findElements(By.xpath(
+                    "//label[contains(normalize-space(.), 'Primary Governance Framework Language')]" +
+                    "/following::input[1]"));
+            for (WebElement input : inputs) {
+                if (!input.isDisplayed()) continue;
+                String type = input.getAttribute("type");
+                if ("hidden".equals(type) || "checkbox".equals(type) || "radio".equals(type)) continue;
+                setInputValueFast(input, "English");
+                WaitUtils.sleep(300);
+                // If a dropdown appeared with "English", click it
+                List<WebElement> options = driver.findElements(By.xpath(
+                        "//*[@role='option' or contains(@class,'option')]" +
+                        "[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'english')]"));
+                for (WebElement opt : options) {
+                    if (opt.isDisplayed()) {
+                        opt.click();
+                        System.out.println("[TrustRegistryPage] Selected English via input autocomplete: " + opt.getText());
+                        return true;
+                    }
+                }
+                System.out.println("[TrustRegistryPage] Typed 'English' into input field (no dropdown appeared).");
+                return true;
+            }
+        } catch (Exception e) {
+            System.out.println("[TrustRegistryPage] Input strategy failed: " + e.getMessage());
+        }
         return false;
     }
 

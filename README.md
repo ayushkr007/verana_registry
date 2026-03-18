@@ -111,13 +111,24 @@ This step launches Chrome with a special profile so the Keplr extension is insta
 
 ### 4. Set your Keplr password
 
-Open `config.properties` and set your Keplr wallet password (the one you created in step 3):
+Set the `KEPLR_PASSWORD` environment variable with the wallet password you created in step 3.
 
-```properties
-keplr.password=YourKeplrPassword
+**macOS / Linux** — add this to your `~/.zshrc` or `~/.bashrc` so it persists across terminal sessions:
+
+```bash
+echo 'export KEPLR_PASSWORD="YourKeplrPassword"' >> ~/.zshrc
+source ~/.zshrc
 ```
 
-This is safe — `config.properties` is gitignored and will never be pushed to GitHub.
+**Windows (PowerShell)** — set it permanently for your user:
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("KEPLR_PASSWORD", "YourKeplrPassword", "User")
+```
+
+Then restart your terminal.
+
+> **Note:** The password is never stored in any project file — it stays in your shell environment only.
 
 ## Run
 
@@ -161,7 +172,13 @@ Make sure the `KEPLR_PASSWORD` environment variable is set in your current termi
 echo $KEPLR_PASSWORD    # should print your password
 ```
 
-If it's empty, set it again (see step 4).
+If it's empty, set it:
+
+```bash
+export KEPLR_PASSWORD="YourKeplrPassword"
+```
+
+To make it permanent, add the export line to your `~/.zshrc` or `~/.bashrc` (see step 4).
 
 ### Test passes but transaction status is "unclear"
 

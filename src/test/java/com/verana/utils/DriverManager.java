@@ -31,7 +31,28 @@ public class DriverManager {
 
     private static Properties loadConfig() {
         Properties props = new Properties();
-        try (FileInputStream fis = new FileInputStream("config.properties")) {
+
+        // Try classpath first (works from any working directory / IDE)
+        java.io.InputStream classpathStream = DriverManager.class.getClassLoader()
+                .getResourceAsStream("config.properties");
+        if (classpathStream != null) {
+            try (classpathStream) {
+                props.load(classpathStream);
+                return props;
+            } catch (IOException e) {
+                // Fall through to file-system fallback
+            }
+        }
+
+        // Fallback: file-system relative path (works when CWD is project root)
+        File configFile = new File("config.properties");
+        if (!configFile.exists()) {
+            throw new RuntimeException(
+                    "config.properties not found on classpath or in working directory (" +
+                    System.getProperty("user.dir") + "). " +
+                    "Copy config.properties.example to config.properties and update values.");
+        }
+        try (FileInputStream fis = new FileInputStream(configFile)) {
             props.load(fis);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load config.properties: " + e.getMessage(), e);

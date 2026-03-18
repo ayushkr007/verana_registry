@@ -63,7 +63,6 @@ public class WalletModalPage {
 
     private final boolean autoUnlockEnabled;
     private final String autoUnlockEnvVar;
-    private final String autoUnlockConfigPassword;
     private String cachedKeplrPassword;
     private boolean loggedPasswordMissing;
     private boolean loggedPasswordLoaded;
@@ -74,7 +73,6 @@ public class WalletModalPage {
         java.util.Properties config = com.verana.utils.DriverManager.getConfig();
         this.autoUnlockEnabled = Boolean.parseBoolean(config.getProperty("keplr.auto.unlock.enabled", "true"));
         this.autoUnlockEnvVar = config.getProperty("keplr.password.env.var", "KEPLR_PASSWORD").trim();
-        this.autoUnlockConfigPassword = config.getProperty("keplr.password", "").trim();
     }
 
     // =========================================================================
@@ -432,6 +430,9 @@ public class WalletModalPage {
             return false;
         }
 
+        System.out.println("[Keplr] tryAutoUnlockInOpenContexts: scanning windows for " + seconds + "s...");
+        int attempt = 0;
+
         while (System.currentTimeMillis() < deadline) {
             Set<String> handles;
             try {
@@ -443,18 +444,37 @@ public class WalletModalPage {
             for (String handle : handles) {
                 try {
                     driver.switchTo().window(handle);
-                    if (isWalletLocked() && attemptAutoUnlockIfLocked()) {
-                        WaitUtils.sleep(140);
-                        if (!isWalletLocked()) {
-                            switchBackTo(originalHandle);
-                            return true;
+                    String url = "";
+                    try { url = driver.getCurrentUrl(); } catch (Exception ignored) {}
+
+                    if (isWalletLocked()) {
+                        attempt++;
+                        System.out.println("[Keplr] Wallet locked detected in window (URL: " + url + "), attempt #" + attempt);
+                        // Wait for page to fully render before trying password
+                        WaitUtils.sleep(500);
+
+                        if (attemptAutoUnlockIfLocked()) {
+                            // Give Keplr time to process the unlock
+                            WaitUtils.sleep(1000);
+                            if (!isWalletLocked()) {
+                                System.out.println("[Keplr] Wallet UNLOCKED successfully!");
+                                switchBackTo(originalHandle);
+                                return true;
+                            } else {
+                                System.out.println("[Keplr] Unlock attempt returned true but wallet still appears locked. Retrying...");
+                            }
+                        } else {
+                            System.out.println("[Keplr] attemptAutoUnlockIfLocked returned false.");
                         }
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    System.out.println("[Keplr] Error in window scan: " + e.getMessage());
+                }
             }
-            WaitUtils.sleep(120);
+            WaitUtils.sleep(300);
         }
 
+        System.out.println("[Keplr] tryAutoUnlockInOpenContexts: timed out after " + seconds + "s, " + attempt + " attempts.");
         switchBackTo(originalHandle);
         return false;
     }
@@ -547,22 +567,25 @@ public class WalletModalPage {
                     System.out.println("[Keplr] Fired: Enter key");
                 } catch (Exception ignored) {}
 
-                // Strategy 5: Robot class — OS-level native mouse click (always trusted)
-                try {
-                    org.openqa.selenium.Point loc = btn.getLocation();
-                    org.openqa.selenium.Dimension size = btn.getSize();
-                    // Get browser window position
-                    org.openqa.selenium.Point windowPos = driver.manage().window().getPosition();
-                    // Button center in screen coordinates (approximate — includes browser chrome ~85px)
-                    int screenX = windowPos.getX() + loc.getX() + size.getWidth() / 2;
-                    int screenY = windowPos.getY() + loc.getY() + size.getHeight() / 2 + 85;
-                    Robot robot = new Robot();
-                    robot.mouseMove(screenX, screenY);
-                    robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-                    robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-                    System.out.println("[Keplr] Fired: Robot click at (" + screenX + "," + screenY + ")");
-                } catch (Exception e) {
-                    System.out.println("[Keplr] Robot click failed: " + e.getMessage());
+                // Strategy 5: Robot class — OS-level native mouse click (skipped in headless / CI)
+                if (!Boolean.parseBoolean(com.verana.utils.DriverManager.getConfig().getProperty("browser.headless", "false"))
+                        && !java.awt.GraphicsEnvironment.isHeadless()) {
+                    try {
+                        org.openqa.selenium.Point loc = btn.getLocation();
+                        org.openqa.selenium.Dimension size = btn.getSize();
+                        org.openqa.selenium.Point windowPos = driver.manage().window().getPosition();
+                        int screenX = windowPos.getX() + loc.getX() + size.getWidth() / 2;
+                        int screenY = windowPos.getY() + loc.getY() + size.getHeight() / 2 + 85;
+                        Robot robot = new Robot();
+                        robot.mouseMove(screenX, screenY);
+                        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+                        System.out.println("[Keplr] Fired: Robot click at (" + screenX + "," + screenY + ")");
+                    } catch (Exception e) {
+                        System.out.println("[Keplr] Robot click failed: " + e.getMessage());
+                    }
+                } else {
+                    System.out.println("[Keplr] Skipped Robot click (headless/CI mode).");
                 }
 
                 // Strategy 6: CDP Input.dispatchMouseEvent
@@ -771,42 +794,139 @@ public class WalletModalPage {
             for (WebElement input : inputs) {
                 if (!input.isDisplayed() || !input.isEnabled()) continue;
 
-                try { input.click(); } catch (Exception ignored) {}
+                System.out.println("[Keplr] Found visible password input. Attempting to enter password...");
 
+                // Strategy 1: Click + clear via JS native setter + sendKeys (best for React)
+                boolean entered = false;
                 try {
+                    input.click();
+                    WaitUtils.sleep(100);
+                    // Use React-compatible native setter to clear
                     ((JavascriptExecutor) driver).executeScript(
                             "var nativeSetter=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;" +
                             "nativeSetter.call(arguments[0],'');" +
                             "arguments[0].dispatchEvent(new Event('input',{bubbles:true}));" +
                             "arguments[0].dispatchEvent(new Event('change',{bubbles:true}));",
                             input);
-                } catch (Exception ignored) {
-                    try { input.clear(); } catch (Exception ignored2) {}
-                }
-
-                input.sendKeys(password);
-
-                try {
+                    input.sendKeys(password);
+                    WaitUtils.sleep(100);
+                    // Fire events so React picks up the value
                     ((JavascriptExecutor) driver).executeScript(
                             "arguments[0].dispatchEvent(new Event('input',{bubbles:true}));" +
                             "arguments[0].dispatchEvent(new Event('change',{bubbles:true}));",
                             input);
-                } catch (Exception ignored) {}
+                    String val = input.getAttribute("value");
+                    if (val != null && !val.isEmpty()) {
+                        entered = true;
+                        System.out.println("[Keplr] Strategy 1 (sendKeys): password entered (length=" + val.length() + ")");
+                    }
+                } catch (Exception e) {
+                    System.out.println("[Keplr] Strategy 1 (sendKeys) failed: " + e.getMessage());
+                }
 
+                // Strategy 2: Full JS — set value via native setter + dispatch all React events
+                if (!entered) {
+                    try {
+                        ((JavascriptExecutor) driver).executeScript(
+                                "var el = arguments[0], val = arguments[1];" +
+                                "el.focus();" +
+                                "var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;" +
+                                "nativeSetter.call(el, '');" +
+                                "nativeSetter.call(el, val);" +
+                                "el.dispatchEvent(new Event('input', {bubbles: true}));" +
+                                "el.dispatchEvent(new Event('change', {bubbles: true}));" +
+                                // Also dispatch React synthetic-like events
+                                "el.dispatchEvent(new InputEvent('input', {bubbles: true, data: val, inputType: 'insertText'}));" +
+                                "el.dispatchEvent(new Event('blur', {bubbles: true}));",
+                                input, password);
+                        WaitUtils.sleep(100);
+                        String val = input.getAttribute("value");
+                        if (val != null && !val.isEmpty()) {
+                            entered = true;
+                            System.out.println("[Keplr] Strategy 2 (JS native setter): password entered (length=" + val.length() + ")");
+                        }
+                    } catch (Exception e) {
+                        System.out.println("[Keplr] Strategy 2 (JS native setter) failed: " + e.getMessage());
+                    }
+                }
+
+                // Strategy 3: Actions class — simulate real keyboard input character by character
+                if (!entered) {
+                    try {
+                        Keys selectAllKey = System.getProperty("os.name", "").toLowerCase().contains("mac")
+                            ? Keys.COMMAND : Keys.CONTROL;
+                    new Actions(driver)
+                                .click(input)
+                                .keyDown(selectAllKey).sendKeys("a").keyUp(selectAllKey)
+                                .sendKeys(Keys.BACK_SPACE)
+                                .sendKeys(password)
+                                .perform();
+                        WaitUtils.sleep(100);
+                        String val = input.getAttribute("value");
+                        if (val != null && !val.isEmpty()) {
+                            entered = true;
+                            System.out.println("[Keplr] Strategy 3 (Actions): password entered (length=" + val.length() + ")");
+                        }
+                    } catch (Exception e) {
+                        System.out.println("[Keplr] Strategy 3 (Actions) failed: " + e.getMessage());
+                    }
+                }
+
+                // Strategy 4: CDP Input.dispatchKeyEvent — type each character via Chrome DevTools Protocol
+                if (!entered) {
+                    try {
+                        input.click();
+                        WaitUtils.sleep(50);
+                        org.openqa.selenium.chrome.ChromeDriver cdpDriver = (org.openqa.selenium.chrome.ChromeDriver) driver;
+                        for (char c : password.toCharArray()) {
+                            java.util.Map<String, Object> keyDown = new java.util.HashMap<>();
+                            keyDown.put("type", "keyDown");
+                            keyDown.put("text", String.valueOf(c));
+                            keyDown.put("key", String.valueOf(c));
+                            cdpDriver.executeCdpCommand("Input.dispatchKeyEvent", keyDown);
+
+                            java.util.Map<String, Object> keyUp = new java.util.HashMap<>();
+                            keyUp.put("type", "keyUp");
+                            keyUp.put("key", String.valueOf(c));
+                            cdpDriver.executeCdpCommand("Input.dispatchKeyEvent", keyUp);
+                        }
+                        WaitUtils.sleep(100);
+                        String val = input.getAttribute("value");
+                        if (val != null && !val.isEmpty()) {
+                            entered = true;
+                            System.out.println("[Keplr] Strategy 4 (CDP keyEvents): password entered (length=" + val.length() + ")");
+                        }
+                    } catch (Exception e) {
+                        System.out.println("[Keplr] Strategy 4 (CDP keyEvents) failed: " + e.getMessage());
+                    }
+                }
+
+                if (!entered) {
+                    System.out.println("[Keplr] WARNING: All password entry strategies failed for visible input.");
+                    return false;
+                }
+
+                // Now click the Unlock button
+                WaitUtils.sleep(200);
                 try {
                     List<WebElement> unlockButtons = driver.findElements(keplrUnlockButton);
                     for (WebElement button : unlockButtons) {
                         if (button.isDisplayed() && button.isEnabled()) {
+                            System.out.println("[Keplr] Clicking unlock button: " + button.getText().trim());
                             safeClick(button);
                             return true;
                         }
                     }
                 } catch (Exception ignored) {}
 
+                // Fallback: press Enter on the input
+                System.out.println("[Keplr] No unlock button found, pressing Enter...");
                 input.sendKeys(Keys.ENTER);
                 return true;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            System.out.println("[Keplr] enterPasswordInVisibleInput error: " + e.getMessage());
+        }
         return false;
     }
 
@@ -867,14 +987,15 @@ public class WalletModalPage {
 
         String envName = (autoUnlockEnvVar == null || autoUnlockEnvVar.isBlank()) ? "KEPLR_PASSWORD" : autoUnlockEnvVar;
         String value = System.getenv(envName);
-        if (value == null || value.trim().isEmpty()) {
-            value = autoUnlockConfigPassword;
-        }
 
         if (value == null || value.trim().isEmpty()) {
             if (!loggedPasswordMissing) {
                 loggedPasswordMissing = true;
-                System.out.println("[Keplr] Auto-unlock enabled but no password. Set env '" + envName + "' or config 'keplr.password'.");
+                System.out.println("[Keplr] ============================================================");
+                System.out.println("[Keplr] ERROR: Keplr password not set!");
+                System.out.println("[Keplr] Set the environment variable before running tests:");
+                System.out.println("[Keplr]   export " + envName + "=YourKeplrPassword");
+                System.out.println("[Keplr] ============================================================");
             }
             return null;
         }
@@ -882,8 +1003,7 @@ public class WalletModalPage {
         cachedKeplrPassword = value.trim();
         if (!loggedPasswordLoaded) {
             loggedPasswordLoaded = true;
-            System.out.println("[Keplr] Password loaded from " +
-                    ((System.getenv(envName) != null && !System.getenv(envName).trim().isEmpty()) ? ("env " + envName) : "config keplr.password") + ".");
+            System.out.println("[Keplr] Password loaded from env variable '" + envName + "'.");
         }
         return cachedKeplrPassword;
     }
