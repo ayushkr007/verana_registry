@@ -1,0 +1,12 @@
+# Don't copy these into the Docker image
+target/
+.idea/
+*.iml
+.DS_Store
+*.png
+config.properties
+.env
+.env.example
+.git/
+*.md
+launch_chrome.sh

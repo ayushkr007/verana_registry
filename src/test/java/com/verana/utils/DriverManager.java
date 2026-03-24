@@ -68,7 +68,15 @@ public class DriverManager {
     }
 
     private static WebDriver createDriver() {
-        WebDriverManager.chromedriver().setup();
+        // If CHROMEDRIVER_PATH is set (e.g. in Docker), use it directly
+        // Otherwise, let WebDriverManager auto-download the matching version
+        String chromeDriverPath = System.getenv("CHROMEDRIVER_PATH");
+        if (chromeDriverPath != null && new File(chromeDriverPath).exists()) {
+            System.setProperty("webdriver.chrome.driver", chromeDriverPath);
+            System.out.println("[DriverManager] Using system chromedriver: " + chromeDriverPath);
+        } else {
+            WebDriverManager.chromedriver().setup();
+        }
 
         ChromeOptions options = new ChromeOptions();
 
@@ -199,6 +207,13 @@ public class DriverManager {
      * Auto-detects Chrome binary location based on the current OS.
      */
     private static String detectChromeBinary() {
+        // Check CHROME_BIN env var first (set in Docker)
+        String chromeBinEnv = System.getenv("CHROME_BIN");
+        if (chromeBinEnv != null && new File(chromeBinEnv).exists()) {
+            System.out.println("[DriverManager] Using CHROME_BIN: " + chromeBinEnv);
+            return chromeBinEnv;
+        }
+
         String os = System.getProperty("os.name", "").toLowerCase();
         String[] candidates;
         if (os.contains("mac")) {

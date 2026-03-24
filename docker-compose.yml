@@ -1,0 +1,23 @@
+# ============================================================
+# Docker Compose — Verana Ecosystem Automation
+# ============================================================
+# Setup (one-time):
+#   1. cp .env.example .env
+#   2. Edit .env and set your Keplr password
+#
+# Run:
+#   docker-compose up --build
+# ============================================================
+
+services:
+  verana-test:
+    build: .
+    image: ayushkr007/verana-automation:latest
+    environment:
+      - KEPLR_PASSWORD=${KEPLR_PASSWORD}
+    volumes:
+      # Mount your local Keplr Chrome profile into the container
+      # so the pre-configured wallet is available to Chrome
+      - ~/selenium-keplr-profile:/root/selenium-keplr-profile
+    # Give Chrome enough shared memory to avoid crashes
+    shm_size: '2gb'

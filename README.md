@@ -15,12 +15,101 @@ Selenium Java automation for creating ecosystems on the Verana testnet Trust Reg
 5. Clicks **Confirm**, approves the Keplr transaction
 6. Waits for transaction success, then navigates back to `/tr`
 
-## Prerequisites
+---
+
+## Quick Start (Docker — recommended)
+
+No need to install Java, Maven, or Chrome. Just **Docker** and **Chrome** (for one-time Keplr setup).
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — install and make sure it's running
+- [Google Chrome](https://www.google.com/chrome/) — only needed for the one-time Keplr wallet setup
+
+### Step 1: Clone the project
+
+```bash
+git clone https://github.com/ayushkr007/verana_registry.git
+cd verana_registry
+```
+
+### Step 2: Set up Keplr wallet (one-time)
+
+Close **all** Chrome windows first, then:
+
+```bash
+chmod +x launch_chrome.sh
+./launch_chrome.sh
+```
+
+Chrome opens with the Keplr extension. In the Keplr popup:
+- If you **already have a wallet**: Click **"Import existing wallet"** → enter your seed phrase → set a password
+- If you **don't have a wallet**: Click **"Create a new wallet"** → save your seed phrase → set a password
+
+Once your wallet is ready, **close Chrome**.
+
+### Step 3: Set your Keplr password
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` in any text editor and replace `YourKeplrPassword` with the password you set in Step 2:
+
+```
+KEPLR_PASSWORD=YourActualPassword
+```
+
+This file is gitignored — your password stays on your machine only.
+
+### Step 4: Run the tests
+
+```bash
+docker-compose up --build
+```
+
+You'll see `ALL TESTS PASSED` when everything works.
+
+### Re-running tests
+
+After the first build, just run:
+
+```bash
+docker-compose up
+```
+
+Add `--build` only if you changed the source code.
+
+---
+
+## Using the pre-built Docker image
+
+If you don't want to build from source, pull the pre-built image from Docker Hub:
+
+```bash
+docker pull ayushkr007/verana-automation:latest
+```
+
+Then run:
+
+```bash
+docker run -e KEPLR_PASSWORD='YourPassword' \
+  -v ~/selenium-keplr-profile:/root/selenium-keplr-profile \
+  --shm-size=2g \
+  ayushkr007/verana-automation:latest
+```
+
+> **Note:** You still need to complete Step 2 (Keplr wallet setup) before running.
+
+---
+
+## Manual Setup (without Docker)
+
+### Prerequisites
 
 - **Java 11+**
 - **Maven 3.6+**
 - **Google Chrome**
-- **A Keplr wallet** — Keplr is a browser extension wallet for Cosmos-based blockchains. If you don't have one yet, you'll create it during setup (step 3 below).
 
 ### Installing prerequisites
 
@@ -58,69 +147,44 @@ java -version    # should show 11+
 mvn -version     # should show 3.6+
 ```
 
-## Setup
+### Setup
 
-### 1. Clone the repository
+#### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
-cd verana_automation
+git clone https://github.com/ayushkr007/verana_registry.git
+cd verana_registry
 ```
 
-### 2. Create your config file
-
-The config file is not included in the repo (it's gitignored to protect passwords and local paths). You need to create it from the provided template:
+#### 2. Create your config file
 
 ```bash
 cp config.properties.example config.properties
 ```
 
-The defaults work out of the box — Chrome binary and Keplr extension paths are auto-detected. You only need to edit `config.properties` if you have a non-standard Chrome installation.
+#### 3. Set up Keplr wallet (one-time)
 
-### 3. Set up Keplr wallet (one-time)
+Close **all** Chrome windows first, then:
 
-This step launches Chrome with a special profile so the Keplr extension is installed and your wallet is saved for future test runs.
+```bash
+chmod +x launch_chrome.sh
+./launch_chrome.sh
+```
+
+Install Keplr, import/create your wallet, set a password, then close Chrome.
+
+**Windows:** See the Docker quick start section above for PowerShell commands.
+
+#### 4. Set your Keplr password
 
 **macOS / Linux:**
-
-1. Close **all** Chrome windows first (required — Chrome can only have one instance per profile)
-2. Run the setup script:
-   ```bash
-   chmod +x launch_chrome.sh
-   ./launch_chrome.sh
-   ```
-3. Chrome will open with the Keplr extension. In the Keplr popup:
-   - If you **already have a wallet**: Click **"Import existing wallet"** → enter your 12/24-word seed phrase → set a password
-   - If you **don't have a wallet**: Click **"Create a new wallet"** → save your seed phrase somewhere safe → set a password
-4. Once Keplr shows your wallet is ready, **close Chrome**
-
-**Windows:**
-
-1. Close all Chrome windows
-2. Open PowerShell and run:
-   ```powershell
-   & "C:\Program Files\Google\Chrome\Application\chrome.exe" `
-     --user-data-dir="$env:USERPROFILE\selenium-keplr-profile" `
-     --profile-directory="Profile 1" `
-     --no-first-run `
-     --no-default-browser-check `
-     "https://app.testnet.verana.network/dashboard"
-   ```
-3. Install the Keplr extension from the Chrome Web Store, then import/create your wallet
-4. Close Chrome
-
-### 4. Set your Keplr password
-
-Set the `KEPLR_PASSWORD` environment variable with the wallet password you created in step 3.
-
-**macOS / Linux** — add this to your `~/.zshrc` or `~/.bashrc` so it persists across terminal sessions:
 
 ```bash
 echo 'export KEPLR_PASSWORD="YourKeplrPassword"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-**Windows (PowerShell)** — set it permanently for your user:
+**Windows (PowerShell):**
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable("KEPLR_PASSWORD", "YourKeplrPassword", "User")
@@ -128,22 +192,43 @@ source ~/.zshrc
 
 Then restart your terminal.
 
-> **Note:** The password is never stored in any project file — it stays in your shell environment only.
-
-## Run
+### Run
 
 ```bash
 mvn test
 ```
 
+---
+
 ## Troubleshooting
+
+### Docker: "KEPLR_PASSWORD is not set"
+
+Create a `.env` file from the template:
+```bash
+cp .env.example .env
+```
+Edit `.env` and set your password. Then run `docker-compose up` again.
+
+### Docker: "Keplr Chrome profile not found"
+
+You need to run the Keplr wallet setup first:
+```bash
+chmod +x launch_chrome.sh
+./launch_chrome.sh
+```
+Install Keplr, set up your wallet, close Chrome, then retry.
+
+### Docker: "Cannot connect to the Docker daemon"
+
+Docker Desktop isn't running. Open Docker Desktop and wait for it to start, then retry.
 
 ### "Failed to launch Chrome" / "user-data-dir is already in use"
 
 Chrome can only run one instance per profile. Close **all** Chrome windows and try again:
 
 ```bash
-# macOS — force quit all Chrome processes
+# macOS
 pkill -f "Google Chrome"
 
 # Linux
@@ -155,34 +240,19 @@ Stop-Process -Name chrome -Force
 
 ### "Keplr extension not found"
 
-The Keplr extension hasn't been installed in the selenium profile yet. Run the setup script (`./launch_chrome.sh`) and install Keplr — see step 3 above.
-
-### "Failed to load config.properties"
-
-You need to create the config file from the template:
-```bash
-cp config.properties.example config.properties
-```
+The Keplr extension hasn't been installed in the selenium profile yet. Run `./launch_chrome.sh` and install Keplr.
 
 ### Keplr is locked / password not working
 
-Make sure the `KEPLR_PASSWORD` environment variable is set in your current terminal session:
+Make sure `KEPLR_PASSWORD` is set:
 
 ```bash
 echo $KEPLR_PASSWORD    # should print your password
 ```
 
-If it's empty, set it:
-
-```bash
-export KEPLR_PASSWORD="YourKeplrPassword"
-```
-
-To make it permanent, add the export line to your `~/.zshrc` or `~/.bashrc` (see step 4).
-
 ### Test passes but transaction status is "unclear"
 
-The blockchain transaction may take longer than the default 60-second timeout. Increase the timeout in `config.properties`:
+Increase the timeout in `config.properties`:
 
 ```properties
 tx.success.wait.seconds=120
