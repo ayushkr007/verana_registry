@@ -19,7 +19,7 @@ Selenium Java automation for creating ecosystems on the Verana testnet Trust Reg
 
 ## Quick Start (Docker — recommended)
 
-No need to install Java, Maven, or Chrome. Just **Docker** and **Chrome** (for one-time Keplr setup).
+No need to install Java, Maven, or Chrome manually. Just **Docker** and **Chrome** (for one-time Keplr setup).
 
 ### Prerequisites
 
@@ -33,52 +33,52 @@ git clone https://github.com/ayushkr007/verana_registry.git
 cd verana_registry
 ```
 
-### Step 2: Set up Keplr wallet (one-time)
-
-Close **all** Chrome windows first, then:
+### Step 2: Run the setup script (one-time)
 
 ```bash
-chmod +x launch_chrome.sh
-./launch_chrome.sh
+chmod +x setup.sh
+./setup.sh
 ```
 
-Chrome opens with the Keplr extension. In the Keplr popup:
-- If you **already have a wallet**: Click **"Import existing wallet"** → enter your seed phrase → set a password
-- If you **don't have a wallet**: Click **"Create a new wallet"** → save your seed phrase → set a password
+The script will:
+1. Ask for your Keplr wallet password (hidden input — no one can see it)
+2. Create a `.env` file with your password (gitignored — never pushed to GitHub)
+3. Open Chrome so you can install Keplr and import/create your wallet
+4. Tell you the next step when done
 
-Once your wallet is ready, **close Chrome**.
-
-### Step 3: Set your Keplr password
-
-```bash
-cp .env.example .env
-```
-
-Open `.env` in any text editor and replace `YourKeplrPassword` with the password you set in Step 2:
-
-```
-KEPLR_PASSWORD=YourActualPassword
-```
-
-This file is gitignored — your password stays on your machine only.
-
-### Step 4: Run the tests
+### Step 3: Run the tests
 
 ```bash
 docker-compose up --build
 ```
 
-You'll see `ALL TESTS PASSED` when everything works.
+### Step 4: Watch the browser live
+
+Open this link in your browser while the tests are running:
+
+```
+http://localhost:7900/vnc.html
+```
+
+You'll see Chrome running inside the container — Keplr unlocking, form filling, transaction signing — all in real-time.
+
+### Step 5: View the test report
+
+After the tests finish, open the HTML report:
+
+```bash
+open reports/emailable-report.html    # macOS
+xdg-open reports/emailable-report.html  # Linux
+```
+
+Or just open `reports/emailable-report.html` in any browser.
 
 ### Re-running tests
 
-After the first build, just run:
-
 ```bash
-docker-compose up
+docker-compose up           # use cached build
+docker-compose up --build   # rebuild after code changes
 ```
-
-Add `--build` only if you changed the source code.
 
 ---
 
@@ -95,9 +95,13 @@ Then run:
 ```bash
 docker run -e KEPLR_PASSWORD='YourPassword' \
   -v ~/selenium-keplr-profile:/root/selenium-keplr-profile \
+  -v ./reports:/app/reports \
+  -p 7900:7900 \
   --shm-size=2g \
   ayushkr007/verana-automation:latest
 ```
+
+Watch the browser live at: `http://localhost:7900/vnc.html`
 
 > **Note:** You still need to complete Step 2 (Keplr wallet setup) before running.
 
@@ -116,13 +120,7 @@ docker run -e KEPLR_PASSWORD='YourPassword' \
 #### macOS
 
 ```bash
-# Install Homebrew (if not installed)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install Java 11 and Maven
 brew install openjdk@11 maven
-
-# Add Java to PATH
 echo 'export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"' >> ~/.zshrc
 source ~/.zshrc
 ```
@@ -140,57 +138,22 @@ sudo apt install openjdk-11-jdk maven google-chrome-stable
 2. Download and install [Maven](https://maven.apache.org/download.cgi) and add it to your `PATH`
 3. Download and install [Google Chrome](https://www.google.com/chrome/)
 
-### Verify installation
-
-```bash
-java -version    # should show 11+
-mvn -version     # should show 3.6+
-```
-
 ### Setup
-
-#### 1. Clone the repository
 
 ```bash
 git clone https://github.com/ayushkr007/verana_registry.git
 cd verana_registry
-```
-
-#### 2. Create your config file
-
-```bash
 cp config.properties.example config.properties
-```
-
-#### 3. Set up Keplr wallet (one-time)
-
-Close **all** Chrome windows first, then:
-
-```bash
 chmod +x launch_chrome.sh
-./launch_chrome.sh
+./launch_chrome.sh    # set up Keplr wallet, then close Chrome
 ```
 
-Install Keplr, import/create your wallet, set a password, then close Chrome.
-
-**Windows:** See the Docker quick start section above for PowerShell commands.
-
-#### 4. Set your Keplr password
-
-**macOS / Linux:**
+Set your Keplr password:
 
 ```bash
 echo 'export KEPLR_PASSWORD="YourKeplrPassword"' >> ~/.zshrc
 source ~/.zshrc
 ```
-
-**Windows (PowerShell):**
-
-```powershell
-[System.Environment]::SetEnvironmentVariable("KEPLR_PASSWORD", "YourKeplrPassword", "User")
-```
-
-Then restart your terminal.
 
 ### Run
 
@@ -204,15 +167,19 @@ mvn test
 
 ### Docker: "KEPLR_PASSWORD is not set"
 
-Create a `.env` file from the template:
+Run the setup script: `./setup.sh`
+
+Or create a `.env` file manually:
 ```bash
 cp .env.example .env
+# Edit .env and set your password
 ```
-Edit `.env` and set your password. Then run `docker-compose up` again.
 
 ### Docker: "Keplr Chrome profile not found"
 
-You need to run the Keplr wallet setup first:
+Run the setup script: `./setup.sh`
+
+Or manually:
 ```bash
 chmod +x launch_chrome.sh
 ./launch_chrome.sh
@@ -225,7 +192,7 @@ Docker Desktop isn't running. Open Docker Desktop and wait for it to start, then
 
 ### "Failed to launch Chrome" / "user-data-dir is already in use"
 
-Chrome can only run one instance per profile. Close **all** Chrome windows and try again:
+Close **all** Chrome windows:
 
 ```bash
 # macOS
@@ -238,22 +205,17 @@ pkill chrome
 Stop-Process -Name chrome -Force
 ```
 
-### "Keplr extension not found"
+### noVNC page is blank / not loading
 
-The Keplr extension hasn't been installed in the selenium profile yet. Run `./launch_chrome.sh` and install Keplr.
+Wait a few seconds — noVNC starts after Xvfb. If still blank, check that port 7900 is not used by another application.
 
 ### Keplr is locked / password not working
 
 Make sure `KEPLR_PASSWORD` is set:
-
 ```bash
-echo $KEPLR_PASSWORD    # should print your password
+echo $KEPLR_PASSWORD
 ```
 
-### Test passes but transaction status is "unclear"
+### Test reports not generated
 
-Increase the timeout in `config.properties`:
-
-```properties
-tx.success.wait.seconds=120
-```
+Reports are saved to `./reports/` after the test run. If the directory is empty, the tests may not have reached the execution phase — check the terminal output for errors.

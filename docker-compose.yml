@@ -2,11 +2,16 @@
 # Docker Compose — Verana Ecosystem Automation
 # ============================================================
 # Setup (one-time):
-#   1. cp .env.example .env
-#   2. Edit .env and set your Keplr password
+#   ./setup.sh
 #
 # Run:
 #   docker-compose up --build
+#
+# Watch live:
+#   Open http://localhost:7900/vnc.html in your browser
+#
+# Reports:
+#   After test run, check ./reports/emailable-report.html
 # ============================================================
 
 services:
@@ -16,8 +21,12 @@ services:
     environment:
       - KEPLR_PASSWORD=${KEPLR_PASSWORD}
     volumes:
-      # Mount your local Keplr Chrome profile into the container
-      # so the pre-configured wallet is available to Chrome
+      # Keplr Chrome profile (set up via setup.sh or launch_chrome.sh)
       - ~/selenium-keplr-profile:/root/selenium-keplr-profile
+      # Test reports — available after test run in ./reports/
+      - ./reports:/app/reports
+    ports:
+      # noVNC — watch the browser live at http://localhost:7900/vnc.html
+      - "7900:7900"
     # Give Chrome enough shared memory to avoid crashes
     shm_size: '2gb'

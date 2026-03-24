@@ -8,3 +8,4 @@ keplr_debug_screenshot.png
 *.png
 config.properties
 .env
+reports/
