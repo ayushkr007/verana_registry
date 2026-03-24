@@ -110,7 +110,7 @@ echo "  Verana Ecosystem Automation — Running Tests"
 echo "============================================================"
 echo ""
 
-mvn test -o
+mvn test
 TEST_EXIT_CODE=$?
 
 # ---------- Copy test reports ----------
