@@ -10,5 +10,5 @@ config.properties
 .git/
 *.md
 launch_chrome.sh
-setup.
+setup.sh
 reports/
