@@ -26,7 +26,7 @@ import java.util.Properties;
  */
 public class DriverManager {
 
-    private static final ThreadLocal<WebDriver> driverThreadLocal =  ThreadLocal<>();
+    private static final ThreadLocal<WebDriver> driverThreadLocal = new ThreadLocal<>();
     private static final Properties config = loadConfig();
 
     private static Properties loadConfig() {
